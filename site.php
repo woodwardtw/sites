@@ -4,8 +4,11 @@
     	<div class="timeline">
 			<div class="content-area">
 				<main id="main" class="site-main" role="main">
-       				 <div id="content">
+       				 <div id="content">       				 	
 				        <?php if(have_posts()): while(have_posts()): the_post(); ?>
+				        	<?php 
+				        	$post_id = get_the_ID();
+				        	totalPages($post_id);?>
 				           <?php 
 				          	 $post_id = get_the_ID();
 				          	 $url = get_post_meta($post_id, 'site-url', true);

@@ -340,11 +340,27 @@ function totalPages($post_id){
 		if($total){
 			update_post_meta( $post_id, 'total-pages', $total);
 			$data = json_decode( wp_remote_retrieve_body( $response ) );
-			if($data != ""){//make sure it's WP
-				if ($data->code === false){ //make sure it's not an old version of WP
-					update_post_meta( $post_id, 'recent-update-pages', $data[0]->date );
-				} 
-			}
+			update_post_meta( $post_id, 'recent-update-pages', $data[0]->date );
 		}
 	}
 }
+
+/*
+
+add_filter( 'wp_insert_post_data' , 'modify_site_title' , '99', 2 ); // Grabs the inserted post data so you can modify it.
+
+function modify_site_title( $data, $postarr ){
+	$post_id = $postarr['ID']; 
+	var_dump($post_id);
+	$title = get_post_meta($post_id, 'child-title', true);
+	var_dump($title);
+
+  if($data['post_type'] === 'site' && $data['post_title'] != $title) { 
+   
+    $data['post_title'] = $title ; //Updates the post title to your new title.
+    $data['post_name'] = $title;//passes empty string to force regeneration of permalink based on title change
+
+  }
+  return $data; // Returns the modified data.
+}
+*/
