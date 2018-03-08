@@ -15,7 +15,7 @@
 				          	//test
 				          	$url = get_post_meta($post_id, 'site-url', true);
 				          	var_dump($url);
-							 var_dump(get_title($url)['text']);
+							 var_dump(get_title($url['text']));
 
 
 				          	 ?>	          	 		
