@@ -8,12 +8,13 @@
 				        <?php if(have_posts()): while(have_posts()): the_post(); ?>
 				        	<?php 
 				        	$post_id = get_the_ID();
-				        	totalPages($post_id);?>
+				        	total_pages($post_id);?>
 				           <?php 
 				          	 $post_id = get_the_ID();
 				          	 $url = get_post_meta($post_id, 'site-url', true);
 				          	 $name = get_post_meta($post_id, 'child-title', true);
 				          	 $description = get_post_meta($post_id, 'child-description', true);
+				          	 //rebuildLink($post_id);
 
 				          	$posts = get_post_meta($post_id, 'total-posts', true);
 							$pages = get_post_meta($post_id, 'total-pages', true);

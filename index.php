@@ -214,10 +214,10 @@ function siteUpdateData($post_id, $post, $update){
     else {
     	if (get_post_meta($post_id, 'site-url', true)){
 	    	$url = get_post_meta($post_id, 'site-url', true);
-			update_post_meta($post_id, 'full-api-url', verifySlash($url['text']) . 'wp-json/' );			
+			update_post_meta($post_id, 'full-api-url', verify_slash($url['text']) . 'wp-json/' );			
 		}
 		
-	$currentTitle = get_the_title($post_id);
+	//$currentTitle = get_post_meta($post_id, 'child-title', true);
 		//get WP API - the @ sign quites the warning about that not existing on non-modern wp sites
 	if(@file_get_contents($url['text'] . 'wp-json')){
 			$json = file_get_contents($url['text'] . 'wp-json');
@@ -228,22 +228,22 @@ function siteUpdateData($post_id, $post, $update){
 			$ddm_tag = $data['ddm_tag']; //tags
 			$description = $data['description'];//site description
 
-			if ($jsonTitle != $currentTitle){
-				update_post_meta($post_id, 'child-title', $data['name']);
-				} 
+			update_post_meta($post_id, 'child-title', $data['name']);
+
 			if ($description != get_post_meta($post_id, 'child-description', true)){
 				update_post_meta($post_id, 'child-description', $description);
 			} 	
 			if ($ddm_tag){
-				updateTags($post_id, $data);
+				update_tags($post_id, $data);
 			} 
-			totalPosts($post_id);	
-			totalPages($post_id);	
+			total_posts($post_id);	
+			total_pages($post_id);
+			return;
 		} 
 	else {
 		if ($url['text']){
 				$htmlTitle = wptexturize(get_title($url['text'])); //no api, look for html title element
-		        if ($htmlTitle != $currentTitle){
+		        if ($htmlTitle){
 		        	update_post_meta($post_id, 'child-title', $htmlTitle);
 		        	} 
 		        else {
@@ -251,9 +251,9 @@ function siteUpdateData($post_id, $post, $update){
 		        	}
 		    }
 		}
-		updateTags($post_id, $data);
-		totalPosts($post_id);
-		totalPages($post_id);			
+		update_tags($post_id, $data);
+		total_posts($post_id);
+		total_pages($post_id);	
 	}
 }
 
@@ -271,7 +271,7 @@ function get_title($url){
 }	
 
 //DDM Tags
-function updateTags($post_id,$data){
+function update_tags($post_id,$data){
 	if ($data['ddm_tag']){
 		$extra = $data['ddm_tag'];
 		$postTags = wp_get_post_tags($id);	  
@@ -285,18 +285,18 @@ function updateTags($post_id,$data){
 		  	}	
 		 } 
 	else {
-	 	missingResponse($post_id, 'no-base-tags', false);
+	 	missing_response($post_id, 'no-base-tags', false);
 	 }
 }
 
 
 //adds defined tag to sites that don't respond for filtering purposes, can be used for filtering in wp_query
-function missingResponse($post_id, $status, $replace){
+function missing_response($post_id, $status, $replace){
 	  	//update_post_meta( $id, 'the-tag', $status);
 	  	wp_set_post_tags( $post_id, $status, $replace ); //opted not to reset tags to null but might change back to true . . . 
 }
 
-function verifySlash($url){
+function verify_slash($url){
 	if(substr($url,-1) != '/'){
 		$url = $url.'/';
 		return $url;
@@ -307,12 +307,12 @@ function verifySlash($url){
 
 
 //GET TOTAL POST COUNT (total-posts) and the date of most recent post published (recent-update-posts)
-function totalPosts($post_id){
+function total_posts($post_id){
 	$siteURL = get_post_meta( $post_id, 'full-api-url', true );
 	$posts = $siteURL . 'wp/v2/posts?per_page=1' ;	
 	$response = wp_remote_get($posts);	
 	if(is_wp_error( $response ) || $response == 404){ //on failure add tag no-posts
-		missingResponse($post_id, 'no-posts', false);
+		missing_response($post_id, 'no-posts', false);
 	} else {
 		$total = $response['headers']['x-wp-total'];	
 		if ($total){
@@ -330,11 +330,11 @@ function totalPosts($post_id){
 
 
 //gets total pages (total-pages) and the date of last publish for pages (recent-update-pages)
-function totalPages($post_id){
+function total_pages($post_id){
 	$siteURL = get_post_meta( $post_id, 'full-api-url', true );
 	$response = wp_remote_get($siteURL . 'wp/v2/pages?per_page=1' );	
 	if(is_wp_error( $response ) || $response == 404){ //on failure add tag 404
-		missingResponse($post_id, 'no-pages', false);
+		missing_response($post_id, 'no-pages', false);
 	} else {
 		$total = $response['headers']['x-wp-total'];
 		if($total){
@@ -345,22 +345,27 @@ function totalPages($post_id){
 	}
 }
 
-/*
 
-add_filter( 'wp_insert_post_data' , 'modify_site_title' , '99', 2 ); // Grabs the inserted post data so you can modify it.
+// from https://wordpress.stackexchange.com/questions/105926/rewriting-post-slug-before-post-save bc I forgot to hook/unhook
+add_action( 'save_post', 'wpse105926_save_post_callback' );
 
-function modify_site_title( $data, $postarr ){
-	$post_id = $postarr['ID']; 
-	var_dump($post_id);
-	$title = get_post_meta($post_id, 'child-title', true);
-	var_dump($title);
+function wpse105926_save_post_callback( $post_id ) {
 
-  if($data['post_type'] === 'site' && $data['post_title'] != $title) { 
-   
-    $data['post_title'] = $title ; //Updates the post title to your new title.
-    $data['post_name'] = $title;//passes empty string to force regeneration of permalink based on title change
+    // verify post is not a revision
+    if ( ! wp_is_post_revision( $post_id ) && get_post_meta($post_id, 'child-title', true)) {
+    	$the_title = get_post_meta($post_id, 'child-title', true);	
+        // unhook this function to prevent infinite looping
+        remove_action( 'save_post', 'wpse105926_save_post_callback' );
 
-  }
-  return $data; // Returns the modified data.
+        // update the post slug
+        wp_update_post( array(
+            'ID' => $post_id,
+            'post_title'   => $the_title,
+			'post_name' => '', 
+        ));
+
+        // re-hook this function
+        add_action( 'save_post', 'wpse105926_save_post_callback' );
+
+    }
 }
-*/
