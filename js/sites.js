@@ -25,13 +25,12 @@ function makeContent (url, destination){
 	});
 
 function writeEvents(data, destination) {
-  var targetDiv = '#'+destination;
-  console.log(targetDiv);	
-  var post = jQuery(targetDiv).append(
-    jQuery(
-       '<div class="child-post-content"><a href="' + data.link + '"><h4>' + data.title.rendered + '</h4></a></div>'
-    ) 
-  );
-}
-
+	  var targetDiv = '#'+destination;
+	  console.log(targetDiv);	
+	  var post = jQuery(targetDiv).append(
+	    jQuery(
+	       '<div class="child-post-content"><a href="' + data.link + '"><h4>' + data.title.rendered + '</h4></a><div class="child-post-summary">' + data.excerpt.rendered + '</div></div>'
+	    ) 
+	  );
+	}
 }

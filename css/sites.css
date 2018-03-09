@@ -16,3 +16,11 @@
 	border: 1px solid;
 	padding: 1em;
 }
+
+.child-post-content:hover {
+	background-color: #efefef;
+}
+
+#sites-content{
+	margin: 3em;
+}
