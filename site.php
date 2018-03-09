@@ -1,7 +1,7 @@
 <?php get_header(); ?>	
 
     <body>  
-    	<div class="timeline">
+    	<div class="syndicated-site">
 			<div class="content-area">
 				<main id="main" class="site-main" role="main">
        				 <div id="sites-content">       				 	
@@ -39,6 +39,6 @@
 				    </div>      
 				</main><!-- #main -->
 			</div><!-- .content-area -->
-		</div><!-- .timeline -->
+		</div><!-- .syndicated-site -->
 	</body>
 <?php get_footer();

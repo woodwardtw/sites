@@ -29,8 +29,8 @@ function writeEvents(data, destination) {
 	  console.log(targetDiv);	
 	  var post = jQuery(targetDiv).append(
 	    jQuery(
-	       '<div class="child-post-wrapper"><div class="child-post-content">' + featureImg(data) + '<div class="child-post-summary"><a href="' + data.link + '"><h4 class="child-post-title">' + data.title.rendered + 
-	       '</h4></a>' + data.excerpt.rendered + '</div></div></div>'
+	       '<div class="child-post-wrapper">' + featureImg(data) + '<div class="child-post-summary"><a href="' + data.link + '"><h4 class="child-post-title">' + data.title.rendered + 
+	       '</h4></a>' + data.excerpt.rendered + '</div></div>'
 	    ) 
 	  );
 	}

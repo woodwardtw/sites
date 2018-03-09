@@ -1,14 +1,28 @@
 .post-content {
-	width: 80%;
+	width: 80vw;
 	margin: 3em auto;
 	}
 
-.child-post-content {
-  display: flex; /* or inline-flex */
+.child-post-wrapper {
+  display: flex; 
+  align-items: flex-start;
+  flex-direction: row;
+  justify-content: flex-start;
+  margin: 1em;
+  border: 1px solid;
+  padding: 1em;
+  overflow: hidden;
+}
+
+.child-thumb-holder{
+  width: 200px;
+  height: 200px;
 }
 
 img.child-thumb {
 	padding: 0 1em 1em 0;
+    object-fit: cover;
+    max-width: 200px;
 }
 
 .child-content-header {
@@ -18,18 +32,13 @@ img.child-thumb {
 	display: block;
 }
 
-.child-post-wrapper {
-	display: block;
-	margin: 1em;
-	border: 1px solid;
-	padding: 1em;
-	overflow: hidden;
+.child-post-summary {
+	width: 100%;
 }
 
 .child-post-wrapper:hover {
 	background-color: #efefef;
 }
-
 
 #sites-content{
 	margin: 3em;
