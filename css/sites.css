@@ -3,6 +3,14 @@
 	margin: 3em auto;
 	}
 
+.child-post-content {
+  display: flex; /* or inline-flex */
+}
+
+img.child-thumb {
+	padding: 0 1em 1em 0;
+}
+
 .child-content-header {
 	width: 100%;
 	margin: 3em 0 2em 0;
@@ -10,17 +18,24 @@
 	display: block;
 }
 
-.child-post-content {
+.child-post-wrapper {
 	display: block;
 	margin: 1em;
 	border: 1px solid;
 	padding: 1em;
+	overflow: hidden;
 }
 
-.child-post-content:hover {
+.child-post-wrapper:hover {
 	background-color: #efefef;
 }
 
+
 #sites-content{
 	margin: 3em;
+}
+
+#syndicated-site-description {
+	margin: .3em 0 .5em 0;
+	padding: 0;
 }

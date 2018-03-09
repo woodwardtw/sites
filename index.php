@@ -369,3 +369,59 @@ function wpse105926_save_post_callback( $post_id ) {
 
     }
 }
+
+//FEATURED IMAGE NINJITSU
+
+function makeFeatured($id, $url){
+	$remoteSite = $url;
+	$cleanUrl = preg_replace("(^https?://)", "", $remoteSite ); //remove http or https
+	$cleanUrl = str_replace('/', "_", $cleanUrl); //replace / with _
+	$img_url = get_plugin_directory()  . '/screenshots/' . $cleanUrl . '.jpg';
+
+
+    $upload_dir = wp_upload_dir();
+    if (file_exists($img_url)) {
+    	$image_data = file_get_contents($img_url); 
+	    $filename = basename($img_url);
+	    if(wp_mkdir_p($upload_dir['path'])){
+	    	$file = $upload_dir['path'] . '/' . $filename;
+	    }
+	    else{
+	    	$file = $upload_dir['basedir'] . '/' . $filename;
+		}
+	    file_put_contents($file, $image_data);
+
+	    $wp_filetype = wp_check_filetype($filename, null );
+	    $attachment = array(
+	        'post_mime_type' => $wp_filetype['type'],
+	        'post_title' => sanitize_file_name($filename),
+	        'post_content' => '',
+	        'post_status' => 'inherit'
+	    );
+	    $attach_id = wp_insert_attachment( $attachment, $file, $id );
+	    require_once(ABSPATH . 'wp-admin/includes/image.php');
+	    $attach_data = wp_generate_attachment_metadata( $attach_id, $file );
+	    $res1= wp_update_attachment_metadata( $attach_id, $attach_data );
+	    $res2= set_post_thumbnail( $id, $attach_id );
+	   
+	   	unlink($img_url); //deletes screenshot
+    }
+}
+
+function phantomScreenshot($post_id){
+    $now = new DateTime("now");
+	$checkScreenshot = get_post_meta($post->ID, 'screenshot-date', true);
+	
+	$screenshotDate = new DateTime($checkScreenshot);
+	$diff = $screenshotDate->diff($now);
+
+	$daysDiff = $diff->format('%R%a');
+
+	if ($checkScreenshot === "" || $daysDiff > 7) {	
+		$url = realpath(__DIR__ . '/..'); //set explicit paths to bin etc.
+		require $url . '/inc/screenshot.php';
+		makeFeatured($post->ID);
+		//screenshotThumb($post->ID); //create 300x300 thumbnail --NO LONGER NEEDED W FEATURED INTEGRATION
+	}
+
+}

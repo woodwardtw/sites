@@ -7,9 +7,7 @@
        				 <div id="sites-content">       				 	
 				        <?php if(have_posts()): while(have_posts()): the_post(); ?>
 				        	<?php 
-				        	$post_id = get_the_ID();
-				        	total_pages($post_id);?>
-				           <?php 
+				        	 $post_id = get_the_ID();				       
 				          	 $post_id = get_the_ID();
 				          	 $url = get_post_meta($post_id, 'site-url', true);
 				          	 $name = get_post_meta($post_id, 'child-title', true);
@@ -19,12 +17,12 @@
 				          	$posts = get_post_meta($post_id, 'total-posts', true);
 							$pages = get_post_meta($post_id, 'total-pages', true);
 
-							$posts_url = get_post_meta($post_id, 'full-api-url', true) . 'wp/v2/posts?per_page=10';
-							$pages_url = get_post_meta($post_id, 'full-api-url', true) . 'wp/v2/pages?per_page=10';
+							$posts_url = get_post_meta($post_id, 'full-api-url', true) . 'wp/v2/posts?per_page=10&_embed';
+							$pages_url = get_post_meta($post_id, 'full-api-url', true) . 'wp/v2/pages?per_page=10&_embed';
 
 				          	echo '<h1 id="syndicated-site-title">' . $name . '</h1>';
 				          	if($description){
-				          		echo '<h2>'. $description .'</h2>';
+				          		echo '<h2 id="syndicated-site-description">'. $description .'</h2>';
 				          	} 
 				          	if ($posts > 0){
 				          		echo '<h3 class="child-content-header">Total Posts: ' . $posts . '</h3>';
