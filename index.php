@@ -51,7 +51,7 @@ defined( 'ABSPATH' ) or die( 'No script kiddies please!' );
 		add_action('wp_enqueue_scripts', 'add_sites_stylesheet');
 	
 
-//CUSTOM POST TYPES
+//CUSTOM POST TYPES************************************************************************************************************************
 
 // Register Custom Post Type project
 // Post Type Key: sites
@@ -127,7 +127,6 @@ add_filter( 'pre_get_posts', 'sites_namespace_add_sites' );
 
 
 
-
 //FROM https://codex.wordpress.org/Plugin_API/Filter_Reference/single_template
 /* Filter the single_template with our custom function*/
 function sites_get_custom_post_type_template($single_template) {
@@ -142,7 +141,7 @@ add_filter( 'single_template', 'sites_get_custom_post_type_template' );
 
 
 
-//ADD THE SITE URL METABOX TO POSTS***************************
+//ADD THE SITE URL METABOX TO POSTS***************************************************************************************************
 function site_url_meta_box() {
 	add_meta_box(
 		'site_url_meta_box', // $id
@@ -199,8 +198,9 @@ function show_site_url_meta_box() {
    
 	<?php }
 
-//with the site-url you can do anything
 
+
+//with the site-url you can do anything************************************************************************************************
 //get and update the post title
 
 function siteUpdateData($post_id, $post, $update){
@@ -216,32 +216,30 @@ function siteUpdateData($post_id, $post, $update){
 	    	$url = get_post_meta($post_id, 'site-url', true);
 			update_post_meta($post_id, 'full-api-url', verify_slash($url['text']) . 'wp-json/' );			
 		}
-		
-	//$currentTitle = get_post_meta($post_id, 'child-title', true);
-		//get WP API - the @ sign quites the warning about that not existing on non-modern wp sites
-	if(@file_get_contents($url['text'] . 'wp-json')){
-			$json = file_get_contents($url['text'] . 'wp-json');
+
+
+//GET TITLE  
+//get WP API - the @ sign quites the warning about that not existing on non-wp or non-modern wp sites************************
+	$api = get_post_meta($post_id, 'full-api-url', true);
+	if(@file_get_contents($api)){
+			$json = file_get_contents($api);
 			$data = json_decode($json, true);
 			
 			//break up the JSON
-			$jsonTitle = $data['name'];//set title if has WP API data
-			$ddm_tag = $data['ddm_tag']; //tags
-			$description = $data['description'];//site description
-
+			$jsonTitle = $data->name;//set title if has WP API data --- if fails change pattern to ['name']
+			$ddm_tag = $data->ddm_tag; //tags
+			$description = $data["description"];//site description
 			update_post_meta($post_id, 'child-title', $data['name']);
-
-			if ($description != get_post_meta($post_id, 'child-description', true)){
-				update_post_meta($post_id, 'child-description', $description);
-			} 	
+			update_tags($post_id, $data);
+			update_post_meta($post_id, 'child-description', $description);
 			if ($ddm_tag){
 				update_tags($post_id, $data);
 			} 
 			total_posts($post_id);	
 			total_pages($post_id);
-			return;
 		} 
 	else {
-		if ($url['text']){
+		if (isset($url['text'])){
 				$htmlTitle = wptexturize(get_title($url['text'])); //no api, look for html title element
 		        if ($htmlTitle){
 		        	update_post_meta($post_id, 'child-title', $htmlTitle);
@@ -251,16 +249,17 @@ function siteUpdateData($post_id, $post, $update){
 		        	}
 		    }
 		}
-		update_tags($post_id, $data);
-		total_posts($post_id);
-		total_pages($post_id);	
+			total_posts($post_id);
+			total_pages($post_id);	
+
 	}
+	phantomScreenshot($post_id);
 }
 
 add_action( 'save_post', 'siteUpdateData', 10, 3);
 
 
-//if NOT IN JSON GET SITE TITLE VIA TITLE TAG	
+//if NOT IN JSON GET SITE TITLE VIA TITLE TAG************************	
 function get_title($url){
   $str = file_get_contents($url);
   if(strlen($str)>0){
@@ -270,11 +269,11 @@ function get_title($url){
   }
 }	
 
-//DDM Tags
+//DDM Tags************************************************************************
 function update_tags($post_id,$data){
 	if ($data['ddm_tag']){
 		$extra = $data['ddm_tag'];
-		$postTags = wp_get_post_tags($id);	  
+		$postTags = wp_get_post_tags($post_id);	  
 		$postTagsArray = [];
 		for ($i = 0; $i < count($postTags); $i++){
 		  	array_push($postTagsArray, $postTags[$i]->name);
@@ -285,7 +284,7 @@ function update_tags($post_id,$data){
 		  	}	
 		 } 
 	else {
-	 	missing_response($post_id, 'no-base-tags', false);
+	 	missing_response($post_id, 'no-base-tags' , false); //
 	 }
 }
 
@@ -296,6 +295,8 @@ function missing_response($post_id, $status, $replace){
 	  	wp_set_post_tags( $post_id, $status, $replace ); //opted not to reset tags to null but might change back to true . . . 
 }
 
+
+//GENERAL FUNCTION ************************************************************************
 function verify_slash($url){
 	if(substr($url,-1) != '/'){
 		$url = $url.'/';
@@ -306,7 +307,7 @@ function verify_slash($url){
 }
 
 
-//GET TOTAL POST COUNT (total-posts) and the date of most recent post published (recent-update-posts)
+//GET TOTAL POST COUNT (total-posts) and the date of most recent post published (recent-update-posts)************************
 function total_posts($post_id){
 	$siteURL = get_post_meta( $post_id, 'full-api-url', true );
 	$posts = $siteURL . 'wp/v2/posts?per_page=1' ;	
@@ -321,7 +322,7 @@ function total_posts($post_id){
 		//recent update date for posts
 		$data = json_decode( wp_remote_retrieve_body( $response ) );
 		if ($data != ""){ //make sure it's WP
-			if ($data->code === false || $data->code != 'rest_no_route'){//make sure it's not an old version of WP
+			if ( @$data->code || $data->code != 'rest_no_route'){//make sure it's not an old version of WP
 				update_post_meta( $post_id, 'recent-update-posts', $data[0]->date );
 			}
 		}
@@ -329,7 +330,7 @@ function total_posts($post_id){
 }
 
 
-//gets total pages (total-pages) and the date of last publish for pages (recent-update-pages)
+//gets total pages (total-pages) and the date of last publish for pages (recent-update-pages)************************
 function total_pages($post_id){
 	$siteURL = get_post_meta( $post_id, 'full-api-url', true );
 	$response = wp_remote_get($siteURL . 'wp/v2/pages?per_page=1' );	
@@ -346,7 +347,7 @@ function total_pages($post_id){
 }
 
 
-// from https://wordpress.stackexchange.com/questions/105926/rewriting-post-slug-before-post-save bc I forgot to hook/unhook
+// from https://wordpress.stackexchange.com/questions/105926/rewriting-post-slug-before-post-save bc I forgot to hook/unhook*****************
 add_action( 'save_post', 'wpse105926_save_post_callback' );
 
 function wpse105926_save_post_callback( $post_id ) {
@@ -370,14 +371,67 @@ function wpse105926_save_post_callback( $post_id ) {
     }
 }
 
-//FEATURED IMAGE NINJITSU
+//FEATURED IMAGE NINJITSU************************************************************************************************
+$vendor_path = realpath(__DIR__ . '/'); //set explicit paths to bin etc.
+require_once $vendor_path . '/vendor/autoload.php'; //composer autoload 
+    
+//basic screenshot pieces	
+use JonnyW\PhantomJs\Client;
 
-function makeFeatured($id, $url){
-	$remoteSite = $url;
+
+
+function phantomScreenshot($post_id){
+	$url = realpath( __DIR__ . '/'); //set explicit paths to bin etc.
+	require_once $url . '/vendor/autoload.php'; //composer autoload 
+   
+	//specifics for this WordPress theme
+	$remoteSite = get_post_meta( $post_id, 'site-url', true )['text']; //the URL referenced in the post
 	$cleanUrl = preg_replace("(^https?://)", "", $remoteSite ); //remove http or https
-	$cleanUrl = str_replace('/', "_", $cleanUrl); //replace / with _
-	$img_url = get_plugin_directory()  . '/screenshots/' . $cleanUrl . '.jpg';
+	$replace = array('/','.');
+	$cleanUrl = str_replace($replace, "_", $cleanUrl); //replace / with _
 
+    $client = Client::getInstance();
+    $client->getEngine()->setPath($url . '/bin/phantomjs');
+
+    $width  = 1366;
+    $height = 768;
+    $top    = 0;
+    $left   = 0;
+    
+    /** 
+     * @see JonnyW\PhantomJs\Http\CaptureRequest
+     **/
+    $delay = 1; // 1 second rendering time
+    $img_folder = $url . '/screenshots/'. $cleanUrl . '.jpg';
+
+    $request = $client->getMessageFactory()->createCaptureRequest($remoteSite, 'GET');
+
+    $request->setDelay($delay);
+    $request->setOutputFile($img_folder);
+    $request->setViewportSize($width, $height);
+    $request->setCaptureDimensions($width, $height, $top, $left);
+    //$request;
+    /** 
+     * @see JonnyW\PhantomJs\Http\Response 
+     **/
+     $response = $client->getMessageFactory()->createResponse();
+
+    // Send the request
+    $client->send($request, $response);
+
+    //set the date of the screenshot
+    $date = date('Y-m-d H:i:s');
+    update_post_meta( $post_id, 'screenshot-date', $date );
+    makeFeatured($post_id, $img_folder);
+}
+
+
+//MAKE FEATURED IMG ********************************************************************************
+function makeFeatured($post_id, $img_url){
+	//$remoteSite = $url;
+	//$cleanUrl = preg_replace("(^https?://)", "", $remoteSite ); //remove http or https
+	//$cleanUrl = str_replace('/', "_", $cleanUrl); //replace / with _
+	//$img_url = plugin_dir_path(__FILE__)  . '/screenshots/' . $cleanUrl . '.jpg';
 
     $upload_dir = wp_upload_dir();
     if (file_exists($img_url)) {
@@ -398,30 +452,29 @@ function makeFeatured($id, $url){
 	        'post_content' => '',
 	        'post_status' => 'inherit'
 	    );
-	    $attach_id = wp_insert_attachment( $attachment, $file, $id );
+	    $attach_id = wp_insert_attachment( $attachment, $file, $post_id );
 	    require_once(ABSPATH . 'wp-admin/includes/image.php');
 	    $attach_data = wp_generate_attachment_metadata( $attach_id, $file );
 	    $res1= wp_update_attachment_metadata( $attach_id, $attach_data );
-	    $res2= set_post_thumbnail( $id, $attach_id );
-	   
+	    $res2= set_post_thumbnail( $id, $attach_id );	   
 	   	unlink($img_url); //deletes screenshot
     }
 }
 
-function phantomScreenshot($post_id){
+//NEED A NEW SCREENSHOT?
+function phantomScreenshotCheck($post_id){
     $now = new DateTime("now");
-	$checkScreenshot = get_post_meta($post->ID, 'screenshot-date', true);
-	
+	$checkScreenshot = get_post_meta($post_id, 'screenshot-date', true);
+	$url = get_post_meta($post_id, 'site-url', true);
 	$screenshotDate = new DateTime($checkScreenshot);
 	$diff = $screenshotDate->diff($now);
 
 	$daysDiff = $diff->format('%R%a');
 
 	if ($checkScreenshot === "" || $daysDiff > 7) {	
-		$url = realpath(__DIR__ . '/..'); //set explicit paths to bin etc.
-		require $url . '/inc/screenshot.php';
-		makeFeatured($post->ID);
-		//screenshotThumb($post->ID); //create 300x300 thumbnail --NO LONGER NEEDED W FEATURED INTEGRATION
+		$url = realpath(__DIR__ . '/'); //set explicit paths to bin etc.
+		phantomScreenshot($post_id);
+		//makeFeatured($post_id,$url);
 	}
 
 }
