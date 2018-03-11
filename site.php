@@ -14,13 +14,14 @@
 
 				          	$posts = get_post_meta($post_id, 'total-posts', true);
 							$pages = get_post_meta($post_id, 'total-pages', true);
-/*TESTING STUFF*/
+/*TESTING STUFF
 							$api = get_post_meta($post_id, 'full-api-url', true);
 							$request = wp_remote_get($api);
 							
 							$body = wp_remote_retrieve_body( $request );
 							$data = json_decode( $body );
-							var_dump($data->description);														
+							var_dump($data->description);
+																					*/
 
 							$posts_url = get_post_meta($post_id, 'full-api-url', true) . 'wp/v2/posts?per_page=10&_embed';
 							$pages_url = get_post_meta($post_id, 'full-api-url', true) . 'wp/v2/pages?per_page=10&_embed';

@@ -253,7 +253,9 @@ function siteUpdateData($post_id, $post, $update){
 			total_pages($post_id);	
 
 	}
-	phantomScreenshot($post_id);
+	if (!has_post_thumbnail($post_id)){
+		phantomScreenshot($post_id);
+	}
 }
 
 add_action( 'save_post', 'siteUpdateData', 10, 3);
@@ -386,43 +388,46 @@ function phantomScreenshot($post_id){
    
 	//specifics for this WordPress theme
 	$remoteSite = get_post_meta( $post_id, 'site-url', true )['text']; //the URL referenced in the post
-	$cleanUrl = preg_replace("(^https?://)", "", $remoteSite ); //remove http or https
-	$replace = array('/','.');
-	$cleanUrl = str_replace($replace, "_", $cleanUrl); //replace / with _
+	if ($remoteSite){
+		$cleanUrl = preg_replace("(^https?://)", "", $remoteSite ); //remove http or https
+		$replace = array('/','.');
+		$cleanUrl = str_replace($replace, "_", $cleanUrl); //replace / with _
 
-    $client = Client::getInstance();
-    $client->getEngine()->setPath($url . '/bin/phantomjs');
+	    $client = Client::getInstance();
+	    $client->getEngine()->setPath($url . '/bin/phantomjs');
 
-    $width  = 1366;
-    $height = 768;
-    $top    = 0;
-    $left   = 0;
-    
-    /** 
-     * @see JonnyW\PhantomJs\Http\CaptureRequest
-     **/
-    $delay = 1; // 1 second rendering time
-    $img_folder = $url . '/screenshots/'. $cleanUrl . '.jpg';
+	    $width  = 1366;
+	    $height = 768;
+	    $top    = 0;
+	    $left   = 0;
+	    
+	    /** 
+	     * @see JonnyW\PhantomJs\Http\CaptureRequest
+	     **/
+	    $delay = 1; // 1 second rendering time
+	    $img_folder = $url . '/screenshots/'. $cleanUrl . '.jpg';
 
-    $request = $client->getMessageFactory()->createCaptureRequest($remoteSite, 'GET');
+	    $request = $client->getMessageFactory()->createCaptureRequest($remoteSite, 'GET');
 
-    $request->setDelay($delay);
-    $request->setOutputFile($img_folder);
-    $request->setViewportSize($width, $height);
-    $request->setCaptureDimensions($width, $height, $top, $left);
-    //$request;
-    /** 
-     * @see JonnyW\PhantomJs\Http\Response 
-     **/
-     $response = $client->getMessageFactory()->createResponse();
+	    $request->setDelay($delay);
+	    $request->setOutputFile($img_folder);
+	    $request->setViewportSize($width, $height);
+	    $request->setCaptureDimensions($width, $height, $top, $left);
+	    //$request;
+	    /** 
+	     * @see JonnyW\PhantomJs\Http\Response 
+	     **/
+	     $response = $client->getMessageFactory()->createResponse();
 
-    // Send the request
-    $client->send($request, $response);
+	    // Send the request
+	    $client->send($request, $response);
 
-    //set the date of the screenshot
-    $date = date('Y-m-d H:i:s');
-    update_post_meta( $post_id, 'screenshot-date', $date );
-    makeFeatured($post_id, $img_folder);
+	    //set the date of the screenshot
+	    $date = date('Y-m-d H:i:s');
+	    update_post_meta( $post_id, 'screenshot-date', $date );
+	    //phantomScreenshotCheck($post_id, $img_folder);
+	    makeFeatured($post_id, $img_folder);
+	}
 }
 
 
@@ -462,7 +467,7 @@ function makeFeatured($post_id, $img_url){
 }
 
 //NEED A NEW SCREENSHOT?
-function phantomScreenshotCheck($post_id){
+function phantomScreenshotCheck($post_id, $url){
     $now = new DateTime("now");
 	$checkScreenshot = get_post_meta($post_id, 'screenshot-date', true);
 	$url = get_post_meta($post_id, 'site-url', true);
@@ -474,7 +479,7 @@ function phantomScreenshotCheck($post_id){
 	if ($checkScreenshot === "" || $daysDiff > 7) {	
 		$url = realpath(__DIR__ . '/'); //set explicit paths to bin etc.
 		phantomScreenshot($post_id);
-		//makeFeatured($post_id,$url);
+		makeFeatured($post_id,$url);
 	}
 
 }
