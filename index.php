@@ -157,7 +157,7 @@ add_action( 'add_meta_boxes', 'site_url_meta_box' );
 
 function save_site_url_meta( $post_id ) {   
 	// verify nonce
-	if ( !wp_verify_nonce( $_POST['site_url_meta_box_nonce'], basename(__FILE__) ) ) {
+	if ( isset($_POST['site_url_meta_box_nonce']) && !wp_verify_nonce( $_POST['site_url_meta_box_nonce'], basename(__FILE__) ) ) {
 		return $post_id; 
 	}
 	// check autosave
@@ -165,7 +165,7 @@ function save_site_url_meta( $post_id ) {
 		return $post_id;
 	}
 	// check permissions
-	if ( 'site' === $_POST['post_type'] ) {
+	if ( isset($_POST['post_type']) && 'site' === $_POST['post_type'] ) {
 		if ( !current_user_can( 'edit_page', $post_id ) ) {
 			return $post_id;
 		} elseif ( !current_user_can( 'edit_post', $post_id ) ) {
@@ -174,12 +174,14 @@ function save_site_url_meta( $post_id ) {
 	}
 	
 	$old = get_post_meta( $post_id, 'site-url', true );
-	$new = $_POST['site-url'];
+	if (isset( $_POST['site-url'])){
+		$new = $_POST['site-url'];
 
-	if ( $new && $new !== $old ) {
-		update_post_meta( $post_id, 'site-url', $new );
-	} elseif ( '' === $new && $old ) {
-		delete_post_meta( $post_id, 'site-url', $old );
+		if ( $new && $new !== $old ) {
+			update_post_meta( $post_id, 'site-url', $new );
+		} elseif ( '' === $new && $old ) {
+			delete_post_meta( $post_id, 'site-url', $old );
+		}
 	}
 }
 add_action( 'save_post', 'save_site_url_meta' );
@@ -208,7 +210,7 @@ function siteUpdateData($post_id, $post, $update){
 	$post_type = get_post_type($post_id);	
 
     // If this isn't a 'site' post, don't update it.
-    if ( "site" != $post_type ) {    	
+    if ( "site" != $post_type ||  'trash' === get_post_status( $post_id )  ) {    	
     	return;
     } 
     else {
@@ -221,25 +223,35 @@ function siteUpdateData($post_id, $post, $update){
 //GET TITLE  
 //get WP API - the @ sign quites the warning about that not existing on non-wp or non-modern wp sites************************
 	$api = get_post_meta($post_id, 'full-api-url', true);
-	if(@file_get_contents($api)){
-			$json = file_get_contents($api);
-			$data = json_decode($json, true);
-			
-			//break up the JSON
-			$jsonTitle = $data->name;//set title if has WP API data --- if fails change pattern to ['name']
-			$ddm_tag = $data->ddm_tag; //tags
+	$response = wp_remote_get( $api,  array( 'timeout' => 25 ) );
+
+
+    if( ! is_wp_error( $response ) 
+        && isset( $response['response']['code'] )        
+        && 200 === $response['response']['code'] )
+    {
+        $body = wp_remote_retrieve_body( $response );//RETURNING JSON API DATA
+        $data   = json_decode( $body, true );
+
+
+		//break up the JSON
+		$jsonTitle = $data['name'];//set title if has WP API data --- if fails change pattern to ['name']
+		if(is_object($data) && isset($data['ddm_tag'])){
+			$ddm_tag = $data['ddm_tag']; //tags
+			if ($ddm_tag){
+				update_tags($post_id, $data);
+				} 
+			}
 			$description = $data["description"];//site description
 			update_post_meta($post_id, 'child-title', $data['name']);
 			update_tags($post_id, $data);
 			update_post_meta($post_id, 'child-description', $description);
-			if ($ddm_tag){
-				update_tags($post_id, $data);
-			} 
+			
 			total_posts($post_id);	
 			total_pages($post_id);
 		} 
 	else {
-		if (isset($url['text'])){
+		if (isset($url['text']) && get_post_meta($post_id, 'site-url', true)){
 				$htmlTitle = wptexturize(get_title($url['text'])); //no api, look for html title element
 		        if ($htmlTitle){
 		        	update_post_meta($post_id, 'child-title', $htmlTitle);
@@ -273,7 +285,7 @@ function get_title($url){
 
 //DDM Tags************************************************************************
 function update_tags($post_id,$data){
-	if ($data['ddm_tag']){
+	if ( $data['ddm_tag']){ //make isset check
 		$extra = $data['ddm_tag'];
 		$postTags = wp_get_post_tags($post_id);	  
 		$postTagsArray = [];
@@ -282,7 +294,7 @@ function update_tags($post_id,$data){
 		}
 		if (count(array_diff($extra,$postTagsArray))>0) {
 				$tags = implode(",",$extra); //stringify it 
-		  		wp_set_post_tags($post_id, $tags, true );
+		  		wp_set_post_tags($post_id, $tags, false );
 		  	}	
 		 } 
 	else {
@@ -324,7 +336,7 @@ function total_posts($post_id){
 		//recent update date for posts
 		$data = json_decode( wp_remote_retrieve_body( $response ) );
 		if ($data != ""){ //make sure it's WP
-			if ( @$data->code || $data->code != 'rest_no_route'){//make sure it's not an old version of WP
+			if ( !is_object($data) && @$data->code && $data->code != 'rest_no_route'){//make sure it's not an old version of WP
 				update_post_meta( $post_id, 'recent-update-posts', $data[0]->date );
 			}
 		}
@@ -387,46 +399,49 @@ function phantomScreenshot($post_id){
 	require_once $url . '/vendor/autoload.php'; //composer autoload 
    
 	//specifics for this WordPress theme
-	$remoteSite = get_post_meta( $post_id, 'site-url', true )['text']; //the URL referenced in the post
-	if ($remoteSite){
-		$cleanUrl = preg_replace("(^https?://)", "", $remoteSite ); //remove http or https
-		$replace = array('/','.');
-		$cleanUrl = str_replace($replace, "_", $cleanUrl); //replace / with _
+	if (metadata_exists('post', $post_id, 'site-url' )){
+		$remoteSite = get_post_meta( $post_id, 'site-url', true ); //the URL referenced in the post
+		$remoteSite = $remoteSite['text'];
+		if ($remoteSite){
+			$cleanUrl = preg_replace("(^https?://)", "", $remoteSite ); //remove http or https
+			$replace = array('/','.');
+			$cleanUrl = str_replace($replace, "_", $cleanUrl); //replace / with _
 
-	    $client = Client::getInstance();
-	    $client->getEngine()->setPath($url . '/bin/phantomjs');
+		    $client = Client::getInstance();
+		    $client->getEngine()->setPath($url . '/bin/phantomjs');
 
-	    $width  = 1366;
-	    $height = 768;
-	    $top    = 0;
-	    $left   = 0;
-	    
-	    /** 
-	     * @see JonnyW\PhantomJs\Http\CaptureRequest
-	     **/
-	    $delay = 1; // 1 second rendering time
-	    $img_folder = $url . '/screenshots/'. $cleanUrl . '.jpg';
+		    $width  = 1366;
+		    $height = 768;
+		    $top    = 0;
+		    $left   = 0;
+		    
+		    /** 
+		     * @see JonnyW\PhantomJs\Http\CaptureRequest
+		     **/
+		    $delay = 1; // 1 second rendering time
+		    $img_folder = $url . '/screenshots/'. $cleanUrl . '.jpg';
 
-	    $request = $client->getMessageFactory()->createCaptureRequest($remoteSite, 'GET');
+		    $request = $client->getMessageFactory()->createCaptureRequest($remoteSite, 'GET');
 
-	    $request->setDelay($delay);
-	    $request->setOutputFile($img_folder);
-	    $request->setViewportSize($width, $height);
-	    $request->setCaptureDimensions($width, $height, $top, $left);
-	    //$request;
-	    /** 
-	     * @see JonnyW\PhantomJs\Http\Response 
-	     **/
-	     $response = $client->getMessageFactory()->createResponse();
+		    $request->setDelay($delay);
+		    $request->setOutputFile($img_folder);
+		    $request->setViewportSize($width, $height);
+		    $request->setCaptureDimensions($width, $height, $top, $left);
+		    //$request;
+		    /** 
+		     * @see JonnyW\PhantomJs\Http\Response 
+		     **/
+		     $response = $client->getMessageFactory()->createResponse();
 
-	    // Send the request
-	    $client->send($request, $response);
+		    // Send the request
+		    $client->send($request, $response);
 
-	    //set the date of the screenshot
-	    $date = date('Y-m-d H:i:s');
-	    update_post_meta( $post_id, 'screenshot-date', $date );
-	    //phantomScreenshotCheck($post_id, $img_folder);
-	    makeFeatured($post_id, $img_folder);
+		    //set the date of the screenshot
+		    $date = date('Y-m-d H:i:s');
+		    update_post_meta( $post_id, 'screenshot-date', $date );
+		    //phantomScreenshotCheck($post_id, $img_folder);
+		    makeFeatured($post_id, $img_folder);
+		}
 	}
 }
 
@@ -461,7 +476,7 @@ function makeFeatured($post_id, $img_url){
 	    require_once(ABSPATH . 'wp-admin/includes/image.php');
 	    $attach_data = wp_generate_attachment_metadata( $attach_id, $file );
 	    $res1= wp_update_attachment_metadata( $attach_id, $attach_data );
-	    $res2= set_post_thumbnail( $id, $attach_id );	   
+	    $res2= set_post_thumbnail( $post_id, $attach_id );	   
 	   	unlink($img_url); //deletes screenshot
     }
 }
@@ -482,4 +497,15 @@ function phantomScreenshotCheck($post_id, $url){
 		makeFeatured($post_id,$url);
 	}
 
+}
+
+//PAGE IMPORTER PAGE TEMPLATE
+add_filter( 'page_template', 'sites_reserve_page_template' );
+function sites_reserve_page_template( $page_template )
+{
+    if ( is_page( 'load' ) ) {
+
+        $page_template = dirname( __FILE__ ) . '/make-post.php';
+    }
+    return $page_template;
 }
