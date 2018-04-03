@@ -499,6 +499,7 @@ function phantomScreenshotCheck($post_id, $url){
 
 }
 
+//***********************************************************************************
 //PAGE IMPORTER PAGE TEMPLATE
 add_filter( 'page_template', 'sites_reserve_page_template' );
 function sites_reserve_page_template( $page_template )
@@ -509,3 +510,69 @@ function sites_reserve_page_template( $page_template )
     }
     return $page_template;
 }
+
+//if you're running against a giant set of sites you may need to extend the php time available 
+function run_import(){
+    $string = file_get_contents("/home/devreclaim/davidsoninstalls.json"); //*****SET TO WHEREVER YOUR CPANEL DUMPS YOUR WP INSTALLS
+	$installs = json_decode($string, true);
+	$urls = array();
+	$i = 1;
+	echo '<ol>';
+	foreach ($installs['data'] as $install){
+		$result = check_for_site($install['url']);	
+		echo '<li>' . $install['url'] . ' ' . $result .'</li>';					
+	}
+
+	echo '</ol>';
+}
+
+
+
+//Does the site exist already?
+function check_for_site($url){
+		$args = array(
+		'post_type' => 'site',
+		'post_status' => 'published',
+		'meta_key' => 'site-url',
+		'meta_value' => serialize(array('text'=>$url)),
+		'compare' => '='							           
+		);
+		$my_query = new WP_Query( $args );
+		if ( $my_query->have_posts() ) {
+				return 'already here';
+			} else {
+				makeSite($url);
+				return 'site added';
+			}
+			wp_reset_postdata();
+	}
+
+
+
+//if the site doesn't exist, then make it
+function makeSite($url){
+	// Create post object
+	$input = ['text'=>$url];
+	$my_post = array(
+	  'post_title'    => $url,
+	  'post_content'  => '',
+	  'post_status'   => 'publish',
+	  'post_author'   => 1,
+	  'post_type' => 'site',
+	  'meta_input' => array(
+        'site-url' => $input,
+	    ),
+	);
+	// Insert the post into the database
+	$result = wp_insert_post( $my_post );
+	var_dump($result);
+}
+
+
+//SCHEDULE THE IMPORT TO RUN EVERY 24HRS VIA WP CRON
+
+if( !wp_next_scheduled( 'check_the_sites' ) ) {
+   wp_schedule_event( time(), 'daily', 'check_the_sites' );
+}
+
+add_action( 'check_the_sites', 'run_import' );
