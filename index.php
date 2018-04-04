@@ -513,7 +513,7 @@ function sites_reserve_page_template( $page_template )
 
 //if you're running against a giant set of sites you may need to extend the php time available 
 function run_import(){
-    $string = file_get_contents("/home/devreclaim/davidsoninstalls.json"); //*****SET TO WHEREVER YOUR CPANEL DUMPS YOUR WP INSTALLS
+    $string = file_get_contents("/home/devreclaim/davidsoninstalls.json"); //*****SET TO WHEREVER YOUR CPANEL DUMPS YOUR WP INSTALLS**************
 	$installs = json_decode($string, true);
 	$urls = array();
 	$i = 1;
@@ -529,7 +529,8 @@ function run_import(){
 
 
 //Does the site exist already?
-function check_for_site($url){
+function check_for_site($url){		
+		global $post;
 		$args = array(
 		'post_type' => 'site',
 		'post_status' => 'published',
@@ -537,14 +538,24 @@ function check_for_site($url){
 		'meta_value' => serialize(array('text'=>$url)),
 		'compare' => '='							           
 		);
-		$my_query = new WP_Query( $args );
-		if ( $my_query->have_posts() ) {
-				return 'already here';
-			} else {
-				makeSite($url);
-				return 'site added';
-			}
-			wp_reset_postdata();
+		$site_query = new WP_Query( $args );
+
+		// The Loop
+		if ( $site_query->have_posts() ) :
+		while ( $site_query->have_posts() ) : $site_query->the_post();
+		  // Do Stuff
+			global $post;
+			$date = current_time( 'mysql' );				
+			update_post_meta( $post->ID, 'refresh-date', $date );//UPDATES EVERYTHING ON CHECK
+			siteUpdateData($post->ID, $post, $update);
+			return 'already here';
+		endwhile;
+		else :
+			makeSite($url);
+			return 'site added';
+		endif;
+		// Reset Post Data
+		wp_reset_postdata();
 	}
 
 
